@@ -36,7 +36,7 @@ describe('buildWhatsAppLink', () => {
 describe('buildUpiLink', () => {
   it('builds a upi://pay deep link with all fields', () => {
     const link = buildUpiLink({ vpa: 'society@upi', payeeName: 'Demo Apartments', amount: 4000, note: 'Maintenance dues' });
-    expect(link).toBe('upi://pay?pa=society%40upi&pn=Sunrise+Apartments&am=4000.00&cu=INR&tn=Maintenance+dues');
+    expect(link).toBe('upi://pay?pa=society%40upi&pn=Demo+Apartments&am=4000.00&cu=INR&tn=Maintenance+dues');
   });
 
   it('returns null when no VPA is configured', () => {
