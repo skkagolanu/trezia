@@ -1,0 +1,41 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    volumes:
+      # node_modules and .next are named volumes — container's copy, never
+      # overwritten by the host. Prevents Windows/macOS binary incompatibility.
+      - node_modules:/app/node_modules
+      - next_cache:/app/.next
+    develop:
+      watch:
+        # Sync source changes directly into the container (no rebuild)
+        - path: ./src
+          action: sync
+          target: /app/src
+        - path: ./public
+          action: sync
+          target: /app/public
+        - path: ./next.config.ts
+          action: sync
+          target: /app/next.config.ts
+        - path: ./tsconfig.json
+          action: sync
+          target: /app/tsconfig.json
+        - path: ./postcss.config.mjs
+          action: sync
+          target: /app/postcss.config.mjs
+        # New dependency? Rebuild the image automatically
+        - path: ./package.json
+          action: rebuild
+        - path: ./package-lock.json
+          action: rebuild
+
+volumes:
+  node_modules:
+  next_cache:

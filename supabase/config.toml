@@ -1,0 +1,35 @@
+# Supabase CLI configuration — local, disposable stack only.
+# This is the database `npm run test:rls` runs against. It is never a link to a
+# hosted project: `supabase start` brings up Postgres/Auth/PostgREST in Docker,
+# applies supabase/migrations in order, and `supabase stop --no-backup` discards
+# it. Production credentials never belong in this file.
+project_id = "trezia-local"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+# The RLS suite creates its test users with the service-role admin API and signs
+# them in with a password, so confirmation must not gate those sign-ins.
+[auth.email]
+enable_signup = true
+enable_confirmations = false

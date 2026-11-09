@@ -1,0 +1,12 @@
+# Force LF line endings for everything in the repo, regardless of a
+# contributor's local core.autocrlf setting — this is what actually stops
+# the "LF will be replaced by CRLF" warning on every commit on Windows.
+* text=auto eol=lf
+
+# Binaries — never touch line endings on these
+*.png binary
+*.jpg binary
+*.svg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

@@ -1,0 +1,15 @@
+FROM node:20-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+EXPOSE 3000
+
+ENV NODE_ENV=development
+# Polling ensures HMR works on Windows (WSL2/bind-mount) and macOS (VirtioFS)
+ENV WATCHPACK_POLLING=true
+ENV CHOKIDAR_USEPOLLING=true
+
+CMD ["npm", "run", "dev"]

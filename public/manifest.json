@@ -1,0 +1,20 @@
+{
+  "name": "Trezia — Society Treasurer",
+  "short_name": "Trezia",
+  "description": "Apartment society maintenance, dues, and accounting management",
+  "id": "/",
+  "start_url": "/societies",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FBE9D0",
+  "theme_color": "#244855",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["finance", "productivity", "utilities"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}

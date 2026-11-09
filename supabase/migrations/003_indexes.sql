@@ -1,0 +1,12 @@
+CREATE INDEX idx_payments_unit_id         ON payments(unit_id);
+CREATE INDEX idx_payments_date            ON payments(payment_date DESC);
+CREATE INDEX idx_payments_receipt         ON payments(receipt_number);
+CREATE INDEX idx_payments_utr             ON payments(utr_reference) WHERE utr_reference IS NOT NULL;
+CREATE INDEX idx_payments_mode            ON payments(payment_mode);
+CREATE INDEX idx_bills_unit_period        ON bills(unit_id, bill_period_year, bill_period_month);
+CREATE INDEX idx_bills_status             ON bills(status) WHERE is_voided = FALSE;
+CREATE INDEX idx_expenditures_date        ON expenditures(expense_date DESC);
+CREATE INDEX idx_expenditures_category    ON expenditures(category);
+CREATE INDEX idx_residents_unit           ON residents(unit_id) WHERE is_active = TRUE;
+CREATE INDEX idx_audit_table_record       ON audit_log(table_name, record_id);
+CREATE INDEX idx_audit_created            ON audit_log(created_at DESC);

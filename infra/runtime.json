@@ -1,0 +1,1235 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Synthetic snapshot verification with immutable identities and bounded queue retries",
+  "Metadata": {},
+  "Resources": {
+    "Records": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "object_id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "object_id",
+            "KeyType": "HASH"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "expires_at",
+          "Enabled": true
+        },
+        "SSESpecification": {
+          "SSEEnabled": true
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Per-version durable verification state",
+          "must": [
+            "Immutable identity includes object version"
+          ]
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "DeadLetters": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "SqsManagedSseEnabled": true,
+        "MessageRetentionPeriod": 86400
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Isolate invalid archives after finite retries",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "Queue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "SqsManagedSseEnabled": true,
+        "VisibilityTimeout": 60,
+        "ReceiveMessageWaitTimeSeconds": 20,
+        "MessageRetentionPeriod": 86400,
+        "RedrivePolicy": {
+          "deadLetterTargetArn": {
+            "Fn::GetAtt": [
+              "DeadLetters",
+              "Arn"
+            ]
+          },
+          "maxReceiveCount": 3
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Durable buffering during consumer failure",
+          "must": [
+            "Visibility >= six function timeouts"
+          ]
+        }
+      }
+    },
+    "QueuePolicy": {
+      "Type": "AWS::SQS::QueuePolicy",
+      "Properties": {
+        "Queues": [
+          {
+            "Ref": "Queue"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "sqs:SendMessage",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "Queue",
+                  "Arn"
+                ]
+              },
+              "Principal": {
+                "Service": "s3.amazonaws.com"
+              },
+              "Condition": {
+                "ArnEquals": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::${AWS::StackName}-${AWS::AccountId}"
+                  }
+                },
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            },
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "sqs:*",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "Queue",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Only lab S3 may publish service notifications",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "DeadLetterPolicy": {
+      "Type": "AWS::SQS::QueuePolicy",
+      "Properties": {
+        "Queues": [
+          {
+            "Ref": "DeadLetters"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "sqs:*",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "DeadLetters",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Deny plaintext DLQ access; SQS requires a single resource per policy statement",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "Snapshots": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "IgnorePublicAcls": true,
+          "BlockPublicPolicy": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "BoundedLabRetention",
+              "Status": "Enabled",
+              "ExpirationInDays": 7,
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 1
+              },
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1
+              }
+            }
+          ]
+        },
+        "BucketName": {
+          "Fn::Sub": "${AWS::StackName}-${AWS::AccountId}"
+        },
+        "NotificationConfiguration": {
+          "QueueConfigurations": [
+            {
+              "Event": "s3:ObjectCreated:*",
+              "Queue": {
+                "Fn::GetAtt": [
+                  "Queue",
+                  "Arn"
+                ]
+              },
+              "Filter": {
+                "S3Key": {
+                  "Rules": [
+                    {
+                      "Name": "prefix",
+                      "Value": "input/"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Private versioned synthetic archives",
+          "must": [
+            "Never hold production data"
+          ]
+        }
+      },
+      "DependsOn": "QueuePolicy",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "SnapshotPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "Snapshots"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "Snapshots",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${Snapshots.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Deny plaintext transport",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "FunctionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "LabVerificationOnly",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "s3:GetObjectVersion",
+                  "Resource": {
+                    "Fn::Sub": "${Snapshots.Arn}/input/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Records",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:ReceiveMessage",
+                    "sqs:DeleteMessage",
+                    "sqs:GetQueueAttributes"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Queue",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-*:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "cloudwatch:PutMetricData",
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "cloudwatch:namespace": "TreziaRecoveryLab"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Verifier cannot mutate snapshots or access other databases",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "VerifierLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-verify"
+        },
+        "RetentionInDays": 7
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Bounded structured runtime evidence",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "Verifier": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-verify"
+        },
+        "Runtime": "python3.12",
+        "Handler": "aws_lab.src.handlers.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "FunctionRole",
+            "Arn"
+          ]
+        },
+        "MemorySize": {
+          "Ref": "Memory"
+        },
+        "Timeout": 10,
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ArtifactBucket"
+          },
+          "S3Key": {
+            "Ref": "CodeKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "LAB_BUCKET": {
+              "Ref": "Snapshots"
+            },
+            "LAB_TABLE": {
+              "Ref": "Records"
+            },
+            "LAB_QUEUE_ARN": {
+              "Fn::GetAtt": [
+                "Queue",
+                "Arn"
+              ]
+            },
+            "LAB_NAME": {
+              "Ref": "AWS::StackName"
+            },
+            "LAB_SOCIETIES": "[\"11111111-1111-4111-8111-111111111111\",\"22222222-2222-4222-8222-222222222222\"]",
+            "LAB_MAX_AGE_SECONDS": {
+              "Ref": "FreshnessSeconds"
+            }
+          }
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Real AWS processing with synthetic data",
+          "must": [
+            "No provisioned concurrency"
+          ]
+        }
+      },
+      "DependsOn": "VerifierLogs"
+    },
+    "WatchdogLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-watchdog"
+        },
+        "RetentionInDays": 7
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Bounded structured runtime evidence",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "Watchdog": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-watchdog"
+        },
+        "Runtime": "python3.12",
+        "Handler": "aws_lab.src.handlers.freshness_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "FunctionRole",
+            "Arn"
+          ]
+        },
+        "MemorySize": 128,
+        "Timeout": 10,
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ArtifactBucket"
+          },
+          "S3Key": {
+            "Ref": "CodeKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "LAB_BUCKET": {
+              "Ref": "Snapshots"
+            },
+            "LAB_TABLE": {
+              "Ref": "Records"
+            },
+            "LAB_QUEUE_ARN": {
+              "Fn::GetAtt": [
+                "Queue",
+                "Arn"
+              ]
+            },
+            "LAB_NAME": {
+              "Ref": "AWS::StackName"
+            },
+            "LAB_SOCIETIES": "[\"11111111-1111-4111-8111-111111111111\",\"22222222-2222-4222-8222-222222222222\"]",
+            "LAB_MAX_AGE_SECONDS": {
+              "Ref": "FreshnessSeconds"
+            }
+          }
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Real AWS processing with synthetic data",
+          "must": [
+            "No provisioned concurrency"
+          ]
+        }
+      },
+      "DependsOn": "WatchdogLogs"
+    },
+    "Mapping": {
+      "Type": "AWS::Lambda::EventSourceMapping",
+      "Properties": {
+        "EventSourceArn": {
+          "Fn::GetAtt": [
+            "Queue",
+            "Arn"
+          ]
+        },
+        "FunctionName": {
+          "Ref": "Verifier"
+        },
+        "BatchSize": {
+          "Ref": "Batch"
+        },
+        "MaximumBatchingWindowInSeconds": 0,
+        "FunctionResponseTypes": [
+          "ReportBatchItemFailures"
+        ],
+        "ScalingConfig": {
+          "MaximumConcurrency": 2
+        },
+        "Enabled": true
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Finite concurrency and per-message retry isolation",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "FreshnessRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "ScheduleExpression": "rate(1 minute)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "Watchdog",
+                "Arn"
+              ]
+            },
+            "Id": "Watchdog",
+            "RetryPolicy": {
+              "MaximumEventAgeInSeconds": 60,
+              "MaximumRetryAttempts": 0
+            }
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Short-lived freshness detection experiment; remove after campaign",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "WatchdogPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "Watchdog"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "FreshnessRule",
+            "Arn"
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Only this schedule may invoke the watchdog",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "AlertKey": {
+      "Type": "AWS::KMS::Key",
+      "Properties": {
+        "Description": "Short-lived lab alarm notification encryption",
+        "EnableKeyRotation": true,
+        "PendingWindowInDays": 7,
+        "KeyPolicy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+                }
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudwatch.amazonaws.com"
+              },
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}*"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "CloudWatch encrypted SNS publishing requires a customer-managed key",
+          "must": [
+            "Key encrypts only synthetic alarm notifications",
+            "Schedule deletion during teardown"
+          ]
+        }
+      }
+    },
+    "AlertTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "KmsMasterKeyId": {
+          "Ref": "AlertKey"
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Encrypted machine-to-machine alarm notifications; no email or SMS recipients",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "AlertQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "SqsManagedSseEnabled": true,
+        "MessageRetentionPeriod": 86400,
+        "ReceiveMessageWaitTimeSeconds": 20
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Receipt sink proves actual SNS delivery without contacting people",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "AlertQueuePolicy": {
+      "Type": "AWS::SQS::QueuePolicy",
+      "Properties": {
+        "Queues": [
+          {
+            "Ref": "AlertQueue"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "sqs:SendMessage",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AlertQueue",
+                  "Arn"
+                ]
+              },
+              "Principal": {
+                "Service": "sns.amazonaws.com"
+              },
+              "Condition": {
+                "ArnEquals": {
+                  "aws:SourceArn": {
+                    "Ref": "AlertTopic"
+                  }
+                },
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            },
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "sqs:*",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AlertQueue",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Only the lab alert topic may deliver service notifications",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "AlertSubscription": {
+      "Type": "AWS::SNS::Subscription",
+      "Properties": {
+        "TopicArn": {
+          "Ref": "AlertTopic"
+        },
+        "Protocol": "sqs",
+        "Endpoint": {
+          "Fn::GetAtt": [
+            "AlertQueue",
+            "Arn"
+          ]
+        },
+        "RawMessageDelivery": true
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Observable encrypted SNS-to-SQS alert delivery",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      },
+      "DependsOn": "AlertQueuePolicy"
+    },
+    "FreshnessAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "Namespace": "TreziaRecoveryLab",
+        "MetricName": "StaleSocieties",
+        "Dimensions": [
+          {
+            "Name": "Lab",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          }
+        ],
+        "Statistic": "Maximum",
+        "Period": 60,
+        "EvaluationPeriods": 1,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "breaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ],
+        "OKActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Visible stale and absent-watchdog alarm; notifications stay in the lab",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "AlertTopicPolicy": {
+      "Type": "AWS::SNS::TopicPolicy",
+      "Properties": {
+        "Topics": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "sns:Publish",
+              "Resource": {
+                "Ref": "AlertTopic"
+              },
+              "Principal": {
+                "Service": "cloudwatch.amazonaws.com"
+              },
+              "Condition": {
+                "ArnEquals": {
+                  "aws:SourceArn": {
+                    "Fn::GetAtt": [
+                      "FreshnessAlarm",
+                      "Arn"
+                    ]
+                  }
+                },
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Only this lab alarm can publish notifications",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "WorkerAccess": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "FiniteLabCampaign",
+        "Roles": [
+          {
+            "Fn::Select": [
+              1,
+              {
+                "Fn::Split": [
+                  "role/",
+                  {
+                    "Ref": "WorkerRoleArn"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+                "s3:PutObject"
+              ],
+              "Resource": {
+                "Fn::Sub": "${Snapshots.Arn}/*"
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetBucketVersioning",
+                "s3:GetBucketPublicAccessBlock"
+              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "Snapshots",
+                  "Arn"
+                ]
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetItem",
+                "dynamodb:Scan"
+              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "Records",
+                  "Arn"
+                ]
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "sqs:SendMessage",
+                "sqs:ReceiveMessage",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "Queue",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::GetAtt": [
+                    "DeadLetters",
+                    "Arn"
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "lambda:InvokeFunction",
+                "lambda:GetFunctionConfiguration"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "Verifier",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::GetAtt": [
+                    "Watchdog",
+                    "Arn"
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "lambda:GetEventSourceMapping",
+                "lambda:UpdateEventSourceMapping"
+              ],
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:event-source-mapping:${Mapping}"
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:GetMetricStatistics"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": "sts:AssumeRole",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "TenantReader",
+                  "Arn"
+                ]
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:FilterLogEvents",
+                "logs:GetLogEvents",
+                "logs:DescribeLogStreams"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "VerifierLogs",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::GetAtt": [
+                    "WatchdogLogs",
+                    "Arn"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Runner can exercise only the deployed lab and collect evidence",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    },
+    "TenantReader": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Ref": "WorkerRoleArn"
+                }
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "SingleSyntheticSocietyRead",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "s3:GetObjectVersion",
+                  "Resource": {
+                    "Fn::Sub": "${Snapshots.Arn}/input/11111111-1111-4111-8111-111111111111/*"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Actual scoped tenant-read identity for positive and negative integration tests",
+          "must": [
+            "Lab resources only"
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "Bucket": {
+      "Value": {
+        "Ref": "Snapshots"
+      },
+      "Description": "Bucket for the isolated experiment"
+    },
+    "Table": {
+      "Value": {
+        "Ref": "Records"
+      },
+      "Description": "Table for the isolated experiment"
+    },
+    "QueueUrl": {
+      "Value": {
+        "Ref": "Queue"
+      },
+      "Description": "QueueUrl for the isolated experiment"
+    },
+    "QueueArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Queue",
+          "Arn"
+        ]
+      },
+      "Description": "QueueArn for the isolated experiment"
+    },
+    "DLQUrl": {
+      "Value": {
+        "Ref": "DeadLetters"
+      },
+      "Description": "DLQUrl for the isolated experiment"
+    },
+    "Verifier": {
+      "Value": {
+        "Ref": "Verifier"
+      },
+      "Description": "Verifier for the isolated experiment"
+    },
+    "Watchdog": {
+      "Value": {
+        "Ref": "Watchdog"
+      },
+      "Description": "Watchdog for the isolated experiment"
+    },
+    "Mapping": {
+      "Value": {
+        "Ref": "Mapping"
+      },
+      "Description": "Mapping for the isolated experiment"
+    },
+    "Alarm": {
+      "Value": {
+        "Ref": "FreshnessAlarm"
+      },
+      "Description": "Alarm for the isolated experiment"
+    },
+    "TenantReaderRole": {
+      "Value": {
+        "Fn::GetAtt": [
+          "TenantReader",
+          "Arn"
+        ]
+      },
+      "Description": "TenantReaderRole for the isolated experiment"
+    },
+    "AlertQueueUrl": {
+      "Value": {
+        "Ref": "AlertQueue"
+      },
+      "Description": "AlertQueueUrl for the isolated experiment"
+    },
+    "AlertTopicArn": {
+      "Value": {
+        "Ref": "AlertTopic"
+      },
+      "Description": "AlertTopicArn for the isolated experiment"
+    },
+    "AlertKeyId": {
+      "Value": {
+        "Ref": "AlertKey"
+      },
+      "Description": "AlertKeyId for the isolated experiment"
+    }
+  },
+  "Parameters": {
+    "ArtifactBucket": {
+      "Type": "String",
+      "AllowedPattern": "[a-z0-9.-]+"
+    },
+    "CodeKey": {
+      "Type": "String",
+      "AllowedPattern": "code/[a-zA-Z0-9._-]+.zip"
+    },
+    "WorkerRoleArn": {
+      "Type": "String",
+      "AllowedPattern": "arn:aws:iam::[0-9]{12}:role/.+"
+    },
+    "Memory": {
+      "Type": "Number",
+      "AllowedValues": [
+        128,
+        256,
+        512,
+        1024
+      ],
+      "Default": 128
+    },
+    "Batch": {
+      "Type": "Number",
+      "AllowedValues": [
+        1,
+        5,
+        10
+      ],
+      "Default": 1
+    },
+    "FreshnessSeconds": {
+      "Type": "Number",
+      "AllowedValues": [
+        0,
+        1800
+      ],
+      "Default": 1800
+    }
+  }
+}

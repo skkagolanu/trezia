@@ -1,0 +1,27 @@
+let buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
+let queues = Resources.*[ Type == 'AWS::SQS::Queue' ]
+let logs = Resources.*[ Type == 'AWS::Logs::LogGroup' ]
+let topics = Resources.*[ Type == 'AWS::SNS::Topic' ]
+
+rule private_versioned_buckets when %buckets !empty {
+    %buckets.Properties {
+        PublicAccessBlockConfiguration.BlockPublicAcls == true
+        PublicAccessBlockConfiguration.IgnorePublicAcls == true
+        PublicAccessBlockConfiguration.BlockPublicPolicy == true
+        PublicAccessBlockConfiguration.RestrictPublicBuckets == true
+        VersioningConfiguration.Status == 'Enabled'
+        BucketEncryption.ServerSideEncryptionConfiguration !empty
+    }
+}
+
+rule encrypted_queues when %queues !empty {
+    %queues.Properties.SqsManagedSseEnabled == true
+}
+
+rule short_log_retention when %logs !empty {
+    %logs.Properties.RetentionInDays <= 7
+}
+
+rule encrypted_topics when %topics !empty {
+    %topics.Properties.KmsMasterKeyId exists
+}

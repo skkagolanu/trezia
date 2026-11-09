@@ -1,0 +1,87 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TYPE payment_mode AS ENUM (
+  'UPI',
+  'CASH',
+  'NOBROKER_HOOD',
+  'MANUAL_COLLECTION',
+  'BANK_TRANSFER',
+  'NEFT',
+  'IMPS',
+  'CHEQUE',
+  'ADVANCE',
+  'OTHER'
+);
+
+CREATE TYPE payment_status AS ENUM (
+  'PAID',
+  'DUE',
+  'PARTIAL',
+  'ADVANCE',
+  'WAIVED'
+);
+
+CREATE TYPE bill_status AS ENUM (
+  'DRAFT',
+  'ISSUED',
+  'PAID',
+  'OVERDUE',
+  'CANCELLED'
+);
+
+CREATE TYPE expense_category AS ENUM (
+  'SECURITY_AGENCY',
+  'WATCHMAN_SALARY',
+  'ELECTRICITY',
+  'WATER_MUNICIPAL',
+  'GARBAGE',
+  'GENERATOR_DIESEL',
+  'LIFT_CMC',
+  'LIFT_AMC',
+  'LIFT_REPAIR',
+  'PLUMBING',
+  'ELECTRICAL_REPAIR',
+  'CLEANING_SUPPLIES',
+  'STATIONERY',
+  'INTERNET',
+  'MOBILE_RECHARGE',
+  'BANK_CHARGES',
+  'AUDIT',
+  'LEGAL',
+  'EVENT',
+  'ADVANCE_PAYMENT',
+  'MISC'
+);
+
+CREATE TYPE income_category AS ENUM (
+  'MAINTENANCE',
+  'CMC',
+  'PENALTY',
+  'AD_BOARD_INCOME',
+  'CORPUS_FUND',
+  'OTHER_INCOME'
+);
+
+CREATE TYPE occupancy_type AS ENUM (
+  'OWNER',
+  'TENANT',
+  'VACANT'
+);
+
+CREATE TYPE notification_channel AS ENUM (
+  'EMAIL',
+  'WHATSAPP',
+  'NONE'
+);
+
+CREATE TYPE audit_action AS ENUM (
+  'INSERT',
+  'UPDATE',
+  'SOFT_DELETE',
+  'EXPORT',
+  'LOGIN',
+  'LOGOUT',
+  'RECEIPT_GENERATED',
+  'BILL_GENERATED'
+);

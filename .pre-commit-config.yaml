@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: Scan staged files for secrets
+        entry: gitleaks git --pre-commit --staged --redact=100 --ignore-gitleaks-allow --config .gitleaks.toml
+        language: system
+        pass_filenames: false
+        always_run: true

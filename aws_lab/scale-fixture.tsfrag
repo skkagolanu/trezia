@@ -1,0 +1,14 @@
+    // Cloud-only synthetic scaling fixture. All real financial triggers execute.
+    const extraUnits = Array.from({ length: 52 }, (_, i) => ({
+      id: id(), society_id: societyId, flat_number: `${runId}-S-${i}`, is_test_unit: false,
+    }));
+    await expectSetup(await svc.from('units').insert(extraUnits), 'scale to 55 synthetic units');
+    for (let batch = 0; batch < 10; batch++) {
+      const receipts = Array.from({ length: 100 }, (_, offset) => ({
+        id: id(), society_id: societyId, unit_id: extraUnits[(batch * 100 + offset) % extraUnits.length].id,
+        bill_ids: [], amount_paid: 1234.56, payment_mode: 'BANK_TRANSFER',
+        payment_date: today, months_covered: 0,
+      }));
+      await expectSetup(await svc.from('payments').insert(receipts), 'seed real synthetic accounting receipts');
+    }
+

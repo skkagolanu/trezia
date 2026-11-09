@@ -1,0 +1,447 @@
+{
+  "scope": "Synthetic AWS archive-verification and financial-data recovery experiments",
+  "repetitions_per_configuration_workload": 3,
+  "archives_per_repetition": 100,
+  "latency_boundary": "Before S3 upload to first strongly-consistent COMPLETED observation, including polling",
+  "configurations": {
+    "baseline-128-batch1-payments100": {
+      "repetitions": 3,
+      "offered_archives": 300,
+      "accepted_archives": 300,
+      "completed_archives": 300,
+      "missing_at_deadline": 0,
+      "upload_errors": 0,
+      "financial_or_tenant_mismatches": 0,
+      "campaign_seconds_sum": 59.2417848110199,
+      "observed_completed_archives_per_second": 5.0639932769918055,
+      "completion_observed_ms": {
+        "count": 300,
+        "mean": 10768.497167428335,
+        "p50": 10166.234731674194,
+        "p95": 22832.860469818115,
+        "p99": 24639.196157455444,
+        "max": 25116.772413253784
+      },
+      "put_latency_ms": {
+        "count": 300,
+        "mean": 40.572848320007324,
+        "p50": 26.071786880493164,
+        "p95": 212.87202835083008,
+        "p99": 223.94156455993652,
+        "max": 238.37924003601074
+      },
+      "handler_processing_ms": {
+        "count": 300,
+        "mean": 147.89081873999962,
+        "p50": 141.68793400000368,
+        "p95": 163.05106699999783,
+        "p99": 308.51063599999407,
+        "max": 659.882677000013
+      },
+      "handler_process_cpu_ms": {
+        "count": 300,
+        "mean": 11.07265863,
+        "p50": 10.673433999999983,
+        "p95": 11.73782999999995,
+        "p99": 20.690534999999954,
+        "max": 42.87683100000006
+      },
+      "matched_lambda_invocations": 300,
+      "lambda_invocation_duration_ms": {
+        "count": 300,
+        "mean": 189.76916666666668,
+        "p50": 164.21,
+        "p95": 194.63,
+        "p99": 329.34,
+        "max": 7320.71
+      },
+      "lambda_billed_gb_seconds": 7.149125,
+      "lambda_metered_cost_usd_before_free_allowances": 0.0001791523216375,
+      "per_run": [
+        {
+          "name": "baseline-128-batch1-payments100-r0",
+          "seconds": 25.621663808822632,
+          "p95_ms": 24473.570585250854,
+          "p99_ms": 24877.238273620605
+        },
+        {
+          "name": "baseline-128-batch1-payments100-r1",
+          "seconds": 16.556579113006592,
+          "p95_ms": 15306.310176849365,
+          "p99_ms": 15864.017486572266
+        },
+        {
+          "name": "baseline-128-batch1-payments100-r2",
+          "seconds": 17.063541889190674,
+          "p95_ms": 15589.912176132202,
+          "p99_ms": 16385.004997253418
+        }
+      ]
+    },
+    "baseline-128-batch1-payments1000": {
+      "repetitions": 3,
+      "offered_archives": 300,
+      "accepted_archives": 300,
+      "completed_archives": 300,
+      "missing_at_deadline": 0,
+      "upload_errors": 0,
+      "financial_or_tenant_mismatches": 0,
+      "campaign_seconds_sum": 63.9811909198761,
+      "observed_completed_archives_per_second": 4.688878023162951,
+      "completion_observed_ms": {
+        "count": 300,
+        "mean": 10708.348565101624,
+        "p50": 9993.627309799194,
+        "p95": 23555.625915527344,
+        "p99": 26350.537538528442,
+        "max": 27137.45665550232
+      },
+      "put_latency_ms": {
+        "count": 300,
+        "mean": 39.64832623799642,
+        "p50": 25.812149047851562,
+        "p95": 196.93732261657715,
+        "p99": 216.29762649536133,
+        "max": 230.0107479095459
+      },
+      "handler_processing_ms": {
+        "count": 300,
+        "mean": 205.36646112666546,
+        "p50": 196.52058099998726,
+        "p95": 220.12124700000868,
+        "p99": 660.8856420000109,
+        "max": 802.8660829999694
+      },
+      "handler_process_cpu_ms": {
+        "count": 300,
+        "mean": 15.726253436666639,
+        "p50": 15.387719000000022,
+        "p95": 16.197207999999463,
+        "p99": 46.53776799999998,
+        "max": 50.53406400000004
+      },
+      "matched_lambda_invocations": 300,
+      "lambda_invocation_duration_ms": {
+        "count": 300,
+        "mean": 245.9716,
+        "p50": 215.13,
+        "p95": 250.49,
+        "p99": 682.18,
+        "max": 7301.73
+      },
+      "lambda_billed_gb_seconds": 9.256,
+      "lambda_metered_cost_usd_before_free_allowances": 0.0002142669752,
+      "per_run": [
+        {
+          "name": "baseline-128-batch1-payments1000-r0",
+          "seconds": 18.839667081832886,
+          "p95_ms": 17603.36971282959,
+          "p99_ms": 18293.585062026978
+        },
+        {
+          "name": "baseline-128-batch1-payments1000-r1",
+          "seconds": 27.46559739112854,
+          "p95_ms": 26065.084218978882,
+          "p99_ms": 27038.973569869995
+        },
+        {
+          "name": "baseline-128-batch1-payments1000-r2",
+          "seconds": 17.675926446914673,
+          "p95_ms": 16459.30767059326,
+          "p99_ms": 16939.741373062134
+        }
+      ]
+    },
+    "candidate-512-batch5-payments100": {
+      "repetitions": 3,
+      "offered_archives": 300,
+      "accepted_archives": 300,
+      "completed_archives": 300,
+      "missing_at_deadline": 0,
+      "upload_errors": 0,
+      "financial_or_tenant_mismatches": 0,
+      "campaign_seconds_sum": 18.68637752532959,
+      "observed_completed_archives_per_second": 16.054476026364483,
+      "completion_observed_ms": {
+        "count": 300,
+        "mean": 3862.465760707855,
+        "p50": 3289.010524749756,
+        "p95": 8117.839574813843,
+        "p99": 8720.767974853516,
+        "max": 8924.21269416809
+      },
+      "put_latency_ms": {
+        "count": 300,
+        "mean": 38.3937136332194,
+        "p50": 26.67093276977539,
+        "p95": 184.74173545837402,
+        "p99": 267.61913299560547,
+        "max": 276.25060081481934
+      },
+      "handler_processing_ms": {
+        "count": 300,
+        "mean": 45.688274463333194,
+        "p50": 43.69027599999953,
+        "p95": 58.081779999994865,
+        "p99": 89.12388999999621,
+        "max": 181.932548999999
+      },
+      "handler_process_cpu_ms": {
+        "count": 300,
+        "mean": 9.555668153333333,
+        "p50": 9.566819000000004,
+        "p95": 10.694874000000132,
+        "p99": 17.601762000000022,
+        "max": 42.099131999999926
+      },
+      "matched_lambda_invocations": 69,
+      "lambda_invocation_duration_ms": {
+        "count": 69,
+        "mean": 247.3768115942029,
+        "p50": 219.12,
+        "p95": 273.14,
+        "p99": 1874.18,
+        "max": 1874.18
+      },
+      "lambda_billed_gb_seconds": 8.6585,
+      "lambda_metered_cost_usd_before_free_allowances": 0.00015810862195000003,
+      "per_run": [
+        {
+          "name": "candidate-512-batch5-payments100-r0",
+          "seconds": 9.304951667785645,
+          "p95_ms": 8633.393049240112,
+          "p99_ms": 8901.302099227905
+        },
+        {
+          "name": "candidate-512-batch5-payments100-r1",
+          "seconds": 4.628218173980713,
+          "p95_ms": 3730.40771484375,
+          "p99_ms": 3925.45485496521
+        },
+        {
+          "name": "candidate-512-batch5-payments100-r2",
+          "seconds": 4.753207683563232,
+          "p95_ms": 4239.53652381897,
+          "p99_ms": 4602.613210678101
+        }
+      ]
+    },
+    "candidate-512-batch5-payments1000": {
+      "repetitions": 3,
+      "offered_archives": 300,
+      "accepted_archives": 300,
+      "completed_archives": 300,
+      "missing_at_deadline": 0,
+      "upload_errors": 0,
+      "financial_or_tenant_mismatches": 0,
+      "campaign_seconds_sum": 17.85950994491577,
+      "observed_completed_archives_per_second": 16.79777333898256,
+      "completion_observed_ms": {
+        "count": 300,
+        "mean": 3065.072100957235,
+        "p50": 2915.522813796997,
+        "p95": 5456.099271774292,
+        "p99": 5826.277256011963,
+        "max": 6064.401865005493
+      },
+      "put_latency_ms": {
+        "count": 300,
+        "mean": 27.977569103240967,
+        "p50": 27.418851852416992,
+        "p95": 36.80753707885742,
+        "p99": 43.126583099365234,
+        "max": 48.86341094970703
+      },
+      "handler_processing_ms": {
+        "count": 300,
+        "mean": 59.202765173333276,
+        "p50": 58.950024999994355,
+        "p95": 73.82426200000225,
+        "p99": 114.60628300000053,
+        "max": 210.07123100000058
+      },
+      "handler_process_cpu_ms": {
+        "count": 300,
+        "mean": 13.601940976666663,
+        "p50": 13.927793999999771,
+        "p95": 15.25996900000015,
+        "p99": 24.403754999999805,
+        "max": 48.36259300000023
+      },
+      "matched_lambda_invocations": 70,
+      "lambda_invocation_duration_ms": {
+        "count": 70,
+        "mean": 257.9772857142857,
+        "p50": 286.43,
+        "p95": 333.84,
+        "p99": 450.75,
+        "max": 450.75
+      },
+      "lambda_billed_gb_seconds": 9.0475,
+      "lambda_metered_cost_usd_before_free_allowances": 0.00016479196825,
+      "per_run": [
+        {
+          "name": "candidate-512-batch5-payments1000-r0",
+          "seconds": 5.7724645137786865,
+          "p95_ms": 5220.941781997681,
+          "p99_ms": 5454.846143722534
+        },
+        {
+          "name": "candidate-512-batch5-payments1000-r1",
+          "seconds": 5.7838428020477295,
+          "p95_ms": 5440.794944763184,
+          "p99_ms": 5623.448610305786
+        },
+        {
+          "name": "candidate-512-batch5-payments1000-r2",
+          "seconds": 6.3032026290893555,
+          "p95_ms": 5802.637815475464,
+          "p99_ms": 5985.361814498901
+        }
+      ]
+    }
+  },
+  "comparisons": {
+    "100": {
+      "pooled_completion_observed_p95_reduction_percent": 64.44668163437295,
+      "pooled_completion_observed_p99_reduction_percent": 64.60611815773566,
+      "completed_rate_increase_percent": 217.03193800252083
+    },
+    "1000": {
+      "pooled_completion_observed_p95_reduction_percent": 76.83738359854937,
+      "pooled_completion_observed_p99_reduction_percent": 77.88934192521472,
+      "completed_rate_increase_percent": 258.24718101008256
+    }
+  },
+  "restore_drills": [
+    {
+      "run": 1,
+      "exit_code": 0,
+      "whole_rehearsal_seconds": 114.08953356742859,
+      "wipe_to_verified_seconds": 52.30151152610779,
+      "download_and_restore_seconds": 0.8310000896453857,
+      "post_restore_audited_write_verified": true,
+      "row_counts": {
+        "units": 55,
+        "residents": 3,
+        "payments": 1004,
+        "expenditures": 3,
+        "bills": 5,
+        "amc_collections": 3,
+        "balance_snapshots": 2,
+        "treasurer_handovers": 1,
+        "other_income": 3,
+        "levy_configs": 2,
+        "levy_assessments": 2,
+        "opening_balances": 1,
+        "fund_ledger_entries": 2,
+        "advance_settlements": 1,
+        "bank_statement_batches": 1,
+        "bank_statement_lines": 1,
+        "society_notices": 2,
+        "society_documents": 1,
+        "vendors": 2,
+        "vendor_contracts": 2,
+        "assets": 1,
+        "asset_service_records": 1,
+        "operational_expense_links": 1,
+        "society_attachments": 1,
+        "society_memberships": 2,
+        "resident_invites": 2,
+        "access_requests": 1,
+        "fy_treasurers": 1,
+        "audit_log": 1044,
+        "resident_payment_links": 1,
+        "resident_payment_claims": 2,
+        "society_import_batches": 1,
+        "society_import_records": 2
+      }
+    },
+    {
+      "run": 2,
+      "exit_code": 0,
+      "whole_rehearsal_seconds": 108.33017325401306,
+      "wipe_to_verified_seconds": 51.868040800094604,
+      "download_and_restore_seconds": 0.8420000076293945,
+      "post_restore_audited_write_verified": true,
+      "row_counts": {
+        "units": 55,
+        "residents": 3,
+        "payments": 1004,
+        "expenditures": 3,
+        "bills": 5,
+        "amc_collections": 3,
+        "balance_snapshots": 2,
+        "treasurer_handovers": 1,
+        "other_income": 3,
+        "levy_configs": 2,
+        "levy_assessments": 2,
+        "opening_balances": 1,
+        "fund_ledger_entries": 2,
+        "advance_settlements": 1,
+        "bank_statement_batches": 1,
+        "bank_statement_lines": 1,
+        "society_notices": 2,
+        "society_documents": 1,
+        "vendors": 2,
+        "vendor_contracts": 2,
+        "assets": 1,
+        "asset_service_records": 1,
+        "operational_expense_links": 1,
+        "society_attachments": 1,
+        "society_memberships": 2,
+        "resident_invites": 2,
+        "access_requests": 1,
+        "fy_treasurers": 1,
+        "audit_log": 1044,
+        "resident_payment_links": 1,
+        "resident_payment_claims": 2,
+        "society_import_batches": 1,
+        "society_import_records": 2
+      }
+    },
+    {
+      "run": 3,
+      "exit_code": 0,
+      "whole_rehearsal_seconds": 106.53949403762817,
+      "wipe_to_verified_seconds": 52.26360082626343,
+      "download_and_restore_seconds": 0.8919999599456787,
+      "post_restore_audited_write_verified": true,
+      "row_counts": {
+        "units": 55,
+        "residents": 3,
+        "payments": 1004,
+        "expenditures": 3,
+        "bills": 5,
+        "amc_collections": 3,
+        "balance_snapshots": 2,
+        "treasurer_handovers": 1,
+        "other_income": 3,
+        "levy_configs": 2,
+        "levy_assessments": 2,
+        "opening_balances": 1,
+        "fund_ledger_entries": 2,
+        "advance_settlements": 1,
+        "bank_statement_batches": 1,
+        "bank_statement_lines": 1,
+        "society_notices": 2,
+        "society_documents": 1,
+        "vendors": 2,
+        "vendor_contracts": 2,
+        "assets": 1,
+        "asset_service_records": 1,
+        "operational_expense_links": 1,
+        "society_attachments": 1,
+        "society_memberships": 2,
+        "resident_invites": 2,
+        "access_requests": 1,
+        "fy_treasurers": 1,
+        "audit_log": 1044,
+        "resident_payment_links": 1,
+        "resident_payment_claims": 2,
+        "society_import_batches": 1,
+        "society_import_records": 2
+      }
+    }
+  ]
+}
